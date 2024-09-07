@@ -1,0 +1,15 @@
+{
+  "name": "bank-etl",
+  "type": "module",
+  "version": "1.0.0",
+  "dependencies": {
+    "commander": "^12.1.0",
+    "csv-parser": "^3.0.0"
+  },
+  "bin": {
+    "bank-etl": "index.js"
+  },
+  "engines": {
+    "node": "~20.17.0"
+  }
+}
