@@ -1,20 +1,29 @@
 import fs from 'fs';
 import csv from 'csv-parser';
+import dayjs from 'dayjs';
+
+const DATE_FORMAT = 'YYYY-MM-DD';
 
 const amexRowBuilder = (row) => {
-    return ['Amex', row['Date'], `"${row['Description']}"`, row['Amount']];
+    // American Express makes debts positive and payments negative.
+    const amount = parseFloat(row['Amount'], 10) * -1;
+    const date = dayjs(row['Date'], 'MM/DD/YYYY');
+    return ['Amex', date.format(DATE_FORMAT), `"${row['Description']}"`, `${amount}`];
 }
 const chaseRowBuilder = (row) => {
-    return ['Southwest', row['Post Date'], `"${row['Description']}"`, row['Amount']];
+    const date = dayjs(row['Post Date'], 'MM/DD/YYYY');
+    return ['Southwest', date.format(DATE_FORMAT), `"${row['Description']}"`, row['Amount']];
 }
 const checkingRowBuilder = (row) => {
-    return ['Checking', row['Posted Date'], `"${row['Description']}"`, row['Amount']];
+    const date = dayjs(row['Posted Date'], 'YYYY-MM-DD');
+    return ['Checking', date.format(DATE_FORMAT), `"${row['Description']}"`, row['Amount']];
 }
 
 export class BankActivityEtl {
     headers = [];
     numRows = 0;
     writeStream = null;
+    append = false;
     builder = () => { };
 
     constructor(inputFileName, outputFileName) {
@@ -44,7 +53,9 @@ export class BankActivityEtl {
             console.log(`Successfully opened ${this.inputFileName} was successfully opened.`);
             this.headers = Object.keys(row).map((key) => key.toLowerCase().trim());
             this.builder = this._getBuilder(this.headers);
-            this.writeStream.write(this._stringifyRow(['Source', 'Date', 'Description', 'Amount']));
+            if (!this.append) {
+                this.writeStream.write(this._stringifyRow(['Source', 'Date', 'Description', 'Amount']));
+            }
         }
 
         this.numRows++;
@@ -57,8 +68,9 @@ export class BankActivityEtl {
         this.writeStream.end();
     }
 
-    process() {
-        this.writeStream = fs.createWriteStream(this.outputFileName);
+    process(append) {
+        this.append = append;
+        this.writeStream = fs.createWriteStream(this.outputFileName, { flags: append ? 'a' : 'w' });
         fs.createReadStream(this.inputFileName)
             .pipe(csv())
             .on('data', this._onData.bind(this))
